@@ -74,6 +74,40 @@ class TestRailClient:
             
         return response.json() if response.content else {}
 
+    # TestRail 6.7+ returns list endpoints as a paginated wrapper:
+    # {"offset": 0, "limit": 250, "size": 250, "_links": {"next": "...", "prev": null}, "<key>": [...]}
+    # Older versions return a bare list. Each wrapper holds at most 250 items.
+    MAX_PAGES = 200
+
+    def _get_list(self, uri: str, key: str, **params) -> List[Dict]:
+        """GET a list endpoint and return every item, following pagination.
+
+        Args:
+            uri: Endpoint URI without query parameters (e.g. 'get_cases/1')
+            key: Name of the list inside the paginated wrapper (e.g. 'cases')
+            **params: Optional query parameters; None values are skipped
+
+        Raises:
+            Exception: If the response is not a list or wrapper, or has more than
+                MAX_PAGES pages (rather than silently returning a partial list)
+        """
+        query = ''.join(f'&{name}={value}' for name, value in params.items() if value is not None)
+        items: List[Dict] = []
+        offset = 0
+        for _ in range(self.MAX_PAGES):
+            page_query = f'&offset={offset}' if offset else ''
+            response = self._send_request('GET', uri + query + page_query)
+            if isinstance(response, list):
+                return response
+            if not isinstance(response, dict) or key not in response:
+                raise Exception(f"Unexpected TestRail response for {uri}: expected a list or an object with '{key}'")
+            page = response[key]
+            items.extend(page)
+            if not page or not (response.get('_links') or {}).get('next'):
+                return items
+            offset += len(page)
+        raise Exception(f"TestRail {uri} has more than {self.MAX_PAGES} pages; narrow the request")
+
     # Cases API
     def get_case(self, case_id: int) -> Dict:
         """Get a test case by ID."""
@@ -81,10 +115,7 @@ class TestRailClient:
     
     def get_cases(self, project_id: int, suite_id: Optional[int] = None) -> List[Dict]:
         """Get all test cases for a project/suite."""
-        uri = f'get_cases/{project_id}'
-        if suite_id:
-            uri += f'&suite_id={suite_id}'
-        return self._send_request('GET', uri)
+        return self._get_list(f'get_cases/{project_id}', 'cases', suite_id=suite_id)
     
     def add_case(self, section_id: int, data: Dict) -> Dict:
         """Add a new test case."""
@@ -105,7 +136,7 @@ class TestRailClient:
     
     def get_projects(self) -> List[Dict]:
         """Get all projects."""
-        return self._send_request('GET', 'get_projects')
+        return self._get_list('get_projects', 'projects')
     
     def add_project(self, data: Dict) -> Dict:
         """Add a new project."""
@@ -126,7 +157,7 @@ class TestRailClient:
     
     def get_runs(self, project_id: int) -> List[Dict]:
         """Get all test runs for a project."""
-        return self._send_request('GET', f'get_runs/{project_id}')
+        return self._get_list(f'get_runs/{project_id}', 'runs')
     
     def add_run(self, project_id: int, data: Dict) -> Dict:
         """Add a new test run."""
@@ -147,11 +178,11 @@ class TestRailClient:
     # Results API
     def get_results(self, test_id: int) -> List[Dict]:
         """Get all results for a test."""
-        return self._send_request('GET', f'get_results/{test_id}')
+        return self._get_list(f'get_results/{test_id}', 'results')
     
     def get_results_for_run(self, run_id: int) -> List[Dict]:
         """Get all results for a run."""
-        return self._send_request('GET', f'get_results_for_run/{run_id}')
+        return self._get_list(f'get_results_for_run/{run_id}', 'results')
     
     def add_result(self, test_id: int, data: Dict) -> Dict:
         """Add a new result for a test."""
@@ -168,7 +199,7 @@ class TestRailClient:
     # Datasets API (assuming TestRail has dataset endpoints)
     def get_datasets(self, project_id: int) -> List[Dict]:
         """Get all datasets for a project."""
-        return self._send_request('GET', f'get_datasets/{project_id}')
+        return self._get_list(f'get_datasets/{project_id}', 'datasets')
     
     def get_dataset(self, dataset_id: int) -> Dict:
         """Get a dataset by ID."""
@@ -186,15 +217,24 @@ class TestRailClient:
         """Delete a dataset."""
         return self._send_request('POST', f'delete_dataset/{dataset_id}')
 
+    # Tests API
+    def get_tests(self, run_id: int) -> List[Dict]:
+        """Get all tests in a run (each test has its own ID, distinct from the case ID)."""
+        return self._get_list(f'get_tests/{run_id}', 'tests')
+
+    # Suites API
+    def get_suites(self, project_id: int) -> List[Dict]:
+        """Get all suites for a project."""
+        return self._get_list(f'get_suites/{project_id}', 'suites')
+
     # Sections API
     def get_section(self, section_id:int) -> Dict:
         """Get a specific section"""
         return self._send_request('GET', f'get_section/{section_id}')
 
-    def get_sections(self, project_id: int, suite_id:Optional[int] = None, params:Optional[Dict] = None) -> Dict:
-        """Get all sections for a project"""
-        query_params = {**params, "suite_id": suite_id} if suite_id else params
-        return self._send_request('GET', f'get_sections/{project_id}',{params : query_params})
+    def get_sections(self, project_id: int, suite_id: Optional[int] = None) -> List[Dict]:
+        """Get all sections for a project/suite."""
+        return self._get_list(f'get_sections/{project_id}', 'sections', suite_id=suite_id)
 
     def add_section(self, project_id:int, data:Dict) -> Dict:
         """Add a new section"""

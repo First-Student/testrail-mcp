@@ -257,7 +257,7 @@ class TestRailMCPServer(FastMCP):
         @self.tool("get_sections", description="Retrieves all sections for a specified project and or suite")
         def get_sections(
             project_id : int,
-            suite_id: Optional[int] = None ) -> Dict:
+            suite_id: Optional[int] = None ) -> List[Dict]:
             """
             Retrieves all sections for a specified project and suite
             
@@ -480,6 +480,36 @@ class TestRailMCPServer(FastMCP):
                 test_id: The ID of the test
             """
             return self.client.get_results(test_id)
+        
+        @self.tool("get_tests", description="Get all tests in a run, including each test's ID (needed for get_results)")
+        def get_tests(run_id: int) -> List[Dict]:
+            """
+            Get all tests in a test run. A test ID is different from the case ID.
+            
+            Args:
+                run_id: The ID of the test run
+            """
+            return self.client.get_tests(run_id)
+        
+        @self.tool("get_suites", description="Get all test suites for a project")
+        def get_suites(project_id: int) -> List[Dict]:
+            """
+            Get all test suites for a project.
+            
+            Args:
+                project_id: The ID of the project
+            """
+            return self.client.get_suites(project_id)
+        
+        @self.tool("get_results_for_run", description="Get all test results for a run")
+        def get_results_for_run(run_id: int) -> List[Dict]:
+            """
+            Get all test results for a run.
+            
+            Args:
+                run_id: The ID of the test run
+            """
+            return self.client.get_results_for_run(run_id)
         
         @self.tool("add_result", description="Add a new test result")
         def add_result(
