@@ -1,5 +1,5 @@
 import unittest
-from testrail_mcp.testrail_client import TestRailClient
+from testrail_mcp.testrail_client import TestRailClient, page
 
 
 def make_client(responses):
@@ -73,6 +73,20 @@ class GetListTests(unittest.TestCase):
             c = make_client([wrapper(key, [{"id": 1}])])
             self.assertEqual(getattr(c, method)(arg), [{"id": 1}])
             self.assertEqual(c.calls, [uri])
+
+
+class PageTests(unittest.TestCase):
+    def test_first_page_is_bounded_and_reports_total(self):
+        out = page([{"id": i} for i in range(1000)])
+        self.assertEqual((out["total"], out["offset"], out["limit"], len(out["items"])), (1000, 0, 25, 25))
+
+    def test_offset_reads_next_page_and_last_page_is_short(self):
+        items = [{"id": i} for i in range(60)]
+        self.assertEqual(page(items, 25, 50)["items"], items[50:60])
+
+    def test_limit_is_clamped_and_empty_list_works(self):
+        self.assertEqual(page([{}] * 500, 9999)["limit"], 250)
+        self.assertEqual(page([], 0, -5), {"total": 0, "offset": 0, "limit": 1, "items": []})
 
 
 if __name__ == "__main__":

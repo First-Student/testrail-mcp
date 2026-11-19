@@ -4,6 +4,17 @@ import json
 from typing import Dict, List, Any, Optional, Union
 import requests
 
+DEFAULT_PAGE_SIZE = 25
+MAX_PAGE_SIZE = 250
+
+
+def page(items: List[Dict], limit: int = DEFAULT_PAGE_SIZE, offset: int = 0) -> Dict:
+    """Return one bounded slice of a list plus the total, so a large result never becomes one huge reply."""
+    limit = max(1, min(limit, MAX_PAGE_SIZE))
+    offset = max(0, offset)
+    return {'total': len(items), 'offset': offset, 'limit': limit, 'items': items[offset:offset + limit]}
+
+
 class TestRailClient:
     """TestRail API client for interacting with TestRail."""
 

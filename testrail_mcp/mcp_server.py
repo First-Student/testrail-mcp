@@ -2,7 +2,7 @@
 from typing import Dict, List, Any, Optional, Union
 from fastmcp import FastMCP
 
-from testrail_mcp.testrail_client import TestRailClient
+from testrail_mcp.testrail_client import TestRailClient, page, DEFAULT_PAGE_SIZE
 from testrail_mcp.config import TESTRAIL_URL, TESTRAIL_USERNAME, TESTRAIL_API_KEY
 
 
@@ -104,16 +104,18 @@ class TestRailMCPServer(FastMCP):
             """
             return self.client.get_case(case_id)
         
-        @self.tool("get_cases", description="Get all test cases for a project/suite")
-        def get_cases(project_id: int, suite_id: Optional[int] = None) -> List[Dict]:
+        @self.tool("get_cases", description="Get test cases for a project/suite, one page at a time. Returns total, offset, limit and items; total is the full case count")
+        def get_cases(project_id: int, suite_id: Optional[int] = None, limit: int = DEFAULT_PAGE_SIZE, offset: int = 0) -> Dict:
             """
-            Get all test cases for a project/suite.
+            Get test cases for a project/suite, one page at a time.
             
             Args:
                 project_id: The ID of the project
                 suite_id: The ID of the test suite (optional)
+                limit: Maximum items to return (default 25, maximum 250)
+                offset: Number of items to skip; use with the returned total to read the next page
             """
-            return self.client.get_cases(project_id, suite_id)
+            return page(self.client.get_cases(project_id, suite_id), limit, offset)
         
         @self.tool("add_case", description="Add a new test case")
         def add_case(
@@ -254,19 +256,22 @@ class TestRailMCPServer(FastMCP):
             """
             return self.client.get_section(section_id)
 
-        @self.tool("get_sections", description="Retrieves all sections for a specified project and or suite")
+        @self.tool("get_sections", description="Get sections for a project and or suite, one page at a time. Returns total, offset, limit and items")
         def get_sections(
-            project_id : int,
-            suite_id: Optional[int] = None ) -> List[Dict]:
+            project_id: int,
+            suite_id: Optional[int] = None,
+            limit: int = DEFAULT_PAGE_SIZE,
+            offset: int = 0) -> Dict:
             """
-            Retrieves all sections for a specified project and suite
+            Get sections for a project and suite, one page at a time.
             
             Args:
                 project_id: The ID of the project
                 suite_id: The ID of the test suite (Optional)
-
+                limit: Maximum items to return (default 25, maximum 250)
+                offset: Number of items to skip; use with the returned total to read the next page
             """
-            return self.client.get_sections(project_id,suite_id)
+            return page(self.client.get_sections(project_id, suite_id), limit, offset)
 
         @self.tool("add_section", description="Creates a new section in a TestRail project")
         def add_section(
@@ -363,15 +368,17 @@ class TestRailMCPServer(FastMCP):
             """
             return self.client.get_run(run_id)
         
-        @self.tool("get_runs", description="Get all test runs for a project")
-        def get_runs(project_id: int) -> List[Dict]:
+        @self.tool("get_runs", description="Get test runs for a project, one page at a time. Returns total, offset, limit and items")
+        def get_runs(project_id: int, limit: int = DEFAULT_PAGE_SIZE, offset: int = 0) -> Dict:
             """
-            Get all test runs for a project.
+            Get test runs for a project, one page at a time.
             
             Args:
                 project_id: The ID of the project
+                limit: Maximum items to return (default 25, maximum 250)
+                offset: Number of items to skip; use with the returned total to read the next page
             """
-            return self.client.get_runs(project_id)
+            return page(self.client.get_runs(project_id), limit, offset)
         
         @self.tool("add_run", description="Add a new test run")
         def add_run(
@@ -471,25 +478,29 @@ class TestRailMCPServer(FastMCP):
             return self.client.delete_run(run_id)
         
         # Results tools
-        @self.tool("get_results", description="Get all test results for a test")
-        def get_results(test_id: int) -> List[Dict]:
+        @self.tool("get_results", description="Get test results for a test, one page at a time. Returns total, offset, limit and items")
+        def get_results(test_id: int, limit: int = DEFAULT_PAGE_SIZE, offset: int = 0) -> Dict:
             """
-            Get all test results for a test.
+            Get test results for a test, one page at a time.
             
             Args:
                 test_id: The ID of the test
+                limit: Maximum items to return (default 25, maximum 250)
+                offset: Number of items to skip; use with the returned total to read the next page
             """
-            return self.client.get_results(test_id)
+            return page(self.client.get_results(test_id), limit, offset)
         
-        @self.tool("get_tests", description="Get all tests in a run, including each test's ID (needed for get_results)")
-        def get_tests(run_id: int) -> List[Dict]:
+        @self.tool("get_tests", description="Get tests in a run, one page at a time, including each test's ID (needed for get_results). Returns total, offset, limit and items")
+        def get_tests(run_id: int, limit: int = DEFAULT_PAGE_SIZE, offset: int = 0) -> Dict:
             """
-            Get all tests in a test run. A test ID is different from the case ID.
+            Get tests in a test run, one page at a time. A test ID is different from the case ID.
             
             Args:
                 run_id: The ID of the test run
+                limit: Maximum items to return (default 25, maximum 250)
+                offset: Number of items to skip; use with the returned total to read the next page
             """
-            return self.client.get_tests(run_id)
+            return page(self.client.get_tests(run_id), limit, offset)
         
         @self.tool("get_suites", description="Get all test suites for a project")
         def get_suites(project_id: int) -> List[Dict]:
@@ -501,15 +512,17 @@ class TestRailMCPServer(FastMCP):
             """
             return self.client.get_suites(project_id)
         
-        @self.tool("get_results_for_run", description="Get all test results for a run")
-        def get_results_for_run(run_id: int) -> List[Dict]:
+        @self.tool("get_results_for_run", description="Get test results for a run, one page at a time. Returns total, offset, limit and items")
+        def get_results_for_run(run_id: int, limit: int = DEFAULT_PAGE_SIZE, offset: int = 0) -> Dict:
             """
-            Get all test results for a run.
+            Get test results for a run, one page at a time.
             
             Args:
                 run_id: The ID of the test run
+                limit: Maximum items to return (default 25, maximum 250)
+                offset: Number of items to skip; use with the returned total to read the next page
             """
-            return self.client.get_results_for_run(run_id)
+            return page(self.client.get_results_for_run(run_id), limit, offset)
         
         @self.tool("add_result", description="Add a new test result")
         def add_result(
